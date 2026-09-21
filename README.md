@@ -1,123 +1,77 @@
 # Learn DB — стенд для вивчення баз даних
 
-Docker Compose стек із п'ятьма СУБД, веб-сервером PHP, тренажером із вправами та п'ятьма веб-інструментами адміністрування. Призначений для навчання: SQL, порівняння діалектів MySQL/MariaDB/PostgreSQL, документо-орієнтовані запити MongoDB, робота з Redis і написання PHP-застосунків із доступом до баз даних.
+Локальний Docker Compose стенд із п'ятьма СУБД, веб-тренажером і п'ятьма інструментами адміністрування. Призначений для практичного навчання: SQL і діалекти MySQL / MariaDB / PostgreSQL, MongoDB, Redis, транзакції, індекси, права доступу та написання PHP-застосунків із доступом до баз.
+
+Головне — тренажер на http://localhost:8000: 55 вправ із автоматичною перевіркою, SQL Runner із планами запитів, NoSQL-консоль, пісочниці, онлайн-демонстрації блокувань і 11 конспектів українською.
+
+## Зміст
+
+- [Швидкий старт](#швидкий-старт)
+- [Склад стенду](#склад-стенду)
+- [Тренажер](#тренажер)
+- [Облікові дані](#облікові-дані)
+- [Веб-інтерфейси](#веб-інтерфейси)
+- [Консольні клієнти](#консольні-клієнти)
+- [Навчальні дані](#навчальні-дані)
+- [Керування стендом](#керування-стендом)
+- [PHP-середовище](#php-середовище)
+- [Як розширювати стенд](#як-розширювати-стенд)
+- [Структура проєкту](#структура-проєкту)
+- [Налаштування](#налаштування)
+- [Типові проблеми](#типові-проблеми)
+- [Швидкі посилання](#швидкі-посилання)
+- [Повне видалення стенду](#повне-видалення-стенду)
+
+## Швидкий старт
+
+Потрібні Docker Engine 20.10+ і Docker Compose v2+ (`docker --version`, `docker compose version`).
+
+```bash
+cd docker
+./manage.sh up        # перший запуск: образи + збірка web (кілька хвилин)
+./manage.sh seed      # великі дані shop_big для тем індексів
+./manage.sh test      # самоперевірка: підключення, 55 еталонів, обсяг даних
+```
+
+Після цього відкрийте http://localhost:8000 — головну сторінку тренажера, або `./manage.sh urls` для переліку всіх адрес.
+
+Мінімальний сценарій знайомства: головна сторінка → «Вправи» → перша задача з теми SELECT → «SQL Runner» із запитом до `shop_big` у режимі `EXPLAIN` → «Блокування» → «Конспекти».
 
 ## Склад стенду
 
-| Сервіс | Образ | Призначення | Порт на хості |
+| Сервіс | Образ | Призначення | Порт |
 |---|---|---|---|
 | `mysql` | mysql:8.4 | Реляційна СУБД | 3306 |
 | `mariadb` | mariadb:11.4 | Форк MySQL | 3307 |
 | `postgres` | postgres:17-alpine | Реляційна СУБД | 5432 |
 | `mongo` | mongo:7 | Документо-орієнтована СУБД | 27017 |
 | `redis` | redis:7-alpine | Сховище ключ-значення | 6379 |
-| `web` | php:8.4-apache (власна збірка) | PHP/Apache: тренажер, вправи, пісочниця | 8000 |
-| `adminer` | adminer:latest | Універсальний веб-клієнт | 8080 |
+| `web` | php:8.4-apache (власна збірка) | PHP/Apache: тренажер, вправи, пісочниці | 8000 |
+| `adminer` | adminer:latest | Веб-клієнт для SQL-баз | 8080 |
 | `phpmyadmin` | phpmyadmin:latest | Веб-клієнт для MySQL/MariaDB | 8081 |
 | `pgadmin` | dpage/pgadmin4:latest | Веб-клієнт для PostgreSQL | 5050 |
 | `mongo-express` | mongo-express:latest | Веб-клієнт для MongoDB | 8082 |
 | `redis-commander` | rediscommander/redis-commander | Веб-клієнт для Redis | 8083 |
 
-Дані зберігаються в іменованих Docker-томах і не втрачаються після `docker compose down`.
-
-## Вимоги
-
-- Docker Engine 20.10+
-- Docker Compose v2+
-
-Перевірка:
-
-```bash
-docker --version
-docker compose version
-```
-
-## Запуск
-
-```bash
-cd docker
-./manage.sh up
-```
-
-Рівнозначно `docker compose up -d --build`, але `manage.sh` ще й показує статус після старту. Перший запуск завантажує образи (1–2 ГБ), збирає образ `web` (компіляція розширень `mongodb` і `redis` займає кілька хвилин) і виконує init-скрипти з навчальними даними. Зачекайте, доки контейнери стануть `healthy`:
-
-```bash
-docker compose ps
-```
-
-Очікуваний статус — `Up (healthy)` для `mysql`, `mariadb`, `postgres`, `mongo`, `redis`.
-
-Після старту згенеруйте великі дані для тем індексів і продуктивності:
-
-```bash
-./manage.sh seed
-```
-
-Перевірити доступність усіх сервісів та отримати перелік адрес:
-
-```bash
-./manage.sh health
-./manage.sh urls
-```
-
-## Облікові дані
-
-| СУБД | Хост і порт | Користувач | Пароль | База даних |
-|---|---|---|---|---|
-| MySQL | `127.0.0.1:3306` | `root` | `root` | усі бази |
-| MySQL | `127.0.0.1:3306` | `student` | `student` | `learn`, `shop_big`, `sandbox` |
-| MySQL | `127.0.0.1:3306` | `readonly` | `readonly` | читання `learn`, `shop_big` |
-| MariaDB | `127.0.0.1:3307` | `root` | `root` | усі бази |
-| MariaDB | `127.0.0.1:3307` | `student` | `student` | `learn`, `shop_big`, `sandbox` |
-| PostgreSQL | `127.0.0.1:5432` | `student` | `student` | `learn` (схеми `shop`, `shop_big`), `sandbox` |
-| PostgreSQL | `127.0.0.1:5432` | `readonly` | `readonly` | читання `shop`, `shop_big` |
-| MongoDB | `127.0.0.1:27017` | `root` | `student` | `learn`, `shop_big` (authSource `admin`) |
-| Redis | `127.0.0.1:6379` | — | без пароля | — |
-
-Пароль `root` для MySQL/MariaDB — адміністративний. Для навчальних запитів використовуйте `student`. Користувач `readonly` потрібен, щоб на практиці побачити різницю прав: він бачить дані, але не може їх змінити або створити таблицю.
-
-Усі значення задаються у файлі `.env` — його можна редагувати до першого запуску. У PHP-скриптах ті самі дані задані у `www/config.php`.
-
-## Веб-інтерфейси
-
-### Adminer — http://localhost:8080
-
-Універсальний клієнт, працює з усіма п'ятьма СУБД. На формі входу:
-
-- **MySQL:** System `MySQL`, Server `mysql`, Username `student`, Password `student`, Database `learn`
-- **MariaDB:** System `MySQL`, Server `mariadb`, Username `student`, Password `student`, Database `learn`
-- **PostgreSQL:** System `PostgreSQL`, Server `postgres`, Username `student`, Password `student`, Database `learn`
-- **MongoDB та Redis** Adminer не підтримує — використовуйте консольні клієнти (розділ нижче).
-
-### phpMyAdmin — http://localhost:8081
-
-За замовчуванням підключається до MySQL (`mysql` / `student` / `student`). Увімкнено режим довільного сервера: на сторінці входу в полі **Server** можна вказати `mariadb`, щоб перемкнутися на MariaDB (порт залишається 3306 — це внутрішній порт контейнера).
-
-### pgAdmin — http://localhost:5050
-
-Логін: `admin@example.com` / `admin` (у desktop-режимі може відкритися одразу без входу). Сервер `PostgreSQL (learn)` уже доданий у дерево зліва; при першому підключенні введіть пароль `student` і позначте **Save password**.
-
-### Mongo Express — http://localhost:8082
-
-Веб-клієнт для MongoDB: перегляд колекцій, документів, запити й агрегації. Авторизація не потрібна, підключення до бази налаштоване автоматично.
-
-### Redis Commander — http://localhost:8083
-
-Веб-клієнт для Redis: перегляд ключів, типів значень, TTL і виконання команд у консолі.
+Дані зберігаються в іменованих Docker-томах і не втрачаються після `docker compose down` (але видаляються разом із `-v` або `./manage.sh reset`).
 
 ## Тренажер
 
-Головний інструмент для навчання — власний застосунок на PHP (http://localhost:8000):
+Власний застосунок на PHP (http://localhost:8000) — основне середовище навчання:
 
-- **SQL Runner** (http://localhost:8000/runner.php) — виконання SELECT-запитів проти восьми баз (MySQL, MariaDB, PostgreSQL, `shop_big` та пісочниці) з показом часу виконання і плану (`EXPLAIN`, `EXPLAIN ANALYZE`) та експортом результату в CSV (до 5000 рядків). Для баз із групи «Пісочниця» дозволені будь-які операції — INSERT, UPDATE, DELETE, CREATE, DROP.
-- **Схема баз** (http://localhost:8000/schema.php) — таблиці, колонки, типи, ключі, індекси та зовнішні ключі (зв'язки таблиць) будь-якої з дев'яти баз, прочитані з `information_schema` (завжди актуально).
-- **NoSQL-консоль** (http://localhost:8000/nosql.php) — MongoDB `find` та агрегаційний конвеєр (`$match`, `$group`, `$unwind`, `$lookup`…) для баз `learn` і `shop_big`, а також команди Redis із прикладами. Небезпечні операції заборонено (`$out`, `$merge`, `FLUSHALL`, `CONFIG`, `SHUTDOWN`), команди Redis виконуються в окремій базі №5.
-- **Вправи** (http://localhost:8000/tasks.php) — 55 задач із автоматичною перевіркою: 34 SQL (JOIN, GROUP BY, підзапити, CTE, віконні функції, плани запитів, діалекти PostgreSQL і MariaDB), 12 MongoDB (фільтри, проєкції, агрегаційні конвеєри на `learn` і `shop_big`) і 9 Redis (рядки, хеші, списки, множини, рейтинги). Ви пишете запит, система виконує його та порівнює результат з еталонним. Підказки та відповіді — на сторінці завдання. Прогрес зберігається в Redis (ключ `learn:done`).
-- **Пісочниця** (http://localhost:8000/sandbox.php) — окремі бази `sandbox` у MySQL, MariaDB і PostgreSQL для вільних експериментів (INSERT, UPDATE, DELETE, CREATE). Кнопка «Скинути» повертає початковий стан і видаляє всі сторонні таблиці.
-- **Транзакції та блокування** (http://localhost:8000/locks.php) — онлайн-демонстрації без двох терміналів: очікування блокування рядка (`Lock wait timeout` / `lock_timeout`), взаємне блокування з помилкою `Deadlock found` / `40P01`, різниця `REPEATABLE READ` і `READ COMMITTED` на живих даних пісочниці.
-- **Конспекти** (http://localhost:8000/docs.php) — теорія з прикладами, типовими помилками та відповідями до вправ.
+| Розділ | Що робить |
+|---|---|
+| **SQL Runner** `/runner.php` | Виконує SELECT-запити до дев'яти SQL-баз (MySQL, MariaDB, PostgreSQL, три `shop_big` і три пісочниці), показує час і план (`EXPLAIN`, `EXPLAIN ANALYZE`), експортує результат у CSV (до 5000 рядків). У пісочницях дозволені INSERT, UPDATE, DELETE, CREATE, DROP. |
+| **NoSQL-консоль** `/nosql.php` | MongoDB `find` та агрегаційний конвеєр (`$match`, `$group`, `$unwind`, `$lookup`…) для `learn` і `shop_big`; команди Redis із прикладами. Заборонено `$out`, `$merge`, `FLUSHALL`, `CONFIG`, `SHUTDOWN`; Redis працює в окремій базі №5. |
+| **Схема баз** `/schema.php` | Таблиці, колонки, типи, ключі, індекси та зовнішні ключі (зв'язки) будь-якої бази — з `information_schema`, завжди актуально. |
+| **Вправи** `/tasks.php` | 55 задач із автоперевіркою: 34 SQL, 12 MongoDB, 9 Redis. Підказки, еталонні відповіді, збереження прогресу. |
+| **Пісочниця** `/sandbox.php` | Бази `sandbox` у MySQL, MariaDB, PostgreSQL для вільних експериментів. «Скинути» повертає початковий стан і видаляє сторонні таблиці. |
+| **Транзакції та блокування** `/locks.php` | Онлайн-сценарії: очікування блокування рядка, deadlock (`1213` / `40P01`), різниця `REPEATABLE READ` і `READ COMMITTED`. |
+| **Конспекти** `/docs.php` | 11 тем із прикладами, типовими помилками та відповідями. |
 
-Поза браузером для тих самих тем є готові скрипти в каталозі `lessons/`:
+**Прогрес вправ** зберігається в Redis (множина `learn:done`): на сторінці списку видно «Виконано X з 55», біля кожної задачі — позначку, а скинути можна однією кнопкою.
+
+**Готові демонстрації поза браузером** — каталог `lessons/`:
 
 ```bash
 docker exec -i learn-mysql mysql -ustudent -pstudent --default-character-set=utf8mb4 < lessons/transactions_mysql.sql
@@ -127,41 +81,109 @@ docker exec learn-mongo mongosh -u root -p student --authenticationDatabase admi
 docker exec -it learn-redis redis-cli
 ```
 
-Повний перелік: `transactions_mysql.sql`, `transactions_postgres.sql`, `procedures_mysql.sql`, `triggers_postgres.sql`, `json_mysql.sql`, `jsonb_postgres.sql`, `fulltext_mysql.sql`, `fulltext_postgres.sql`, `mongo_aggregation.js`, `mongo_indexes.js`, `redis_basics.txt`.
+Перелік: `transactions_mysql.sql`, `transactions_postgres.sql`, `procedures_mysql.sql`, `triggers_postgres.sql`, `json_mysql.sql`, `jsonb_postgres.sql`, `fulltext_mysql.sql`, `fulltext_postgres.sql`, `mongo_aggregation.js`, `mongo_indexes.js`, `redis_basics.txt`.
+
+## Облікові дані
+
+| СУБД | Хост і порт | Користувач | Пароль | Доступ |
+|---|---|---|---|---|
+| MySQL | `127.0.0.1:3306` | `root` | `root` | усі бази |
+| MySQL | `127.0.0.1:3306` | `student` | `student` | `learn`, `shop_big`, `sandbox` |
+| MySQL | `127.0.0.1:3306` | `readonly` | `readonly` | читання `learn`, `shop_big` |
+| MariaDB | `127.0.0.1:3307` | `root` / `student` | `root` / `student` | як у MySQL |
+| PostgreSQL | `127.0.0.1:5432` | `student` | `student` | `learn` (схеми `shop`, `shop_big`), `sandbox` |
+| PostgreSQL | `127.0.0.1:5432` | `readonly` | `readonly` | читання `shop`, `shop_big` |
+| MongoDB | `127.0.0.1:27017` | `root` | `student` | `learn`, `shop_big` (authSource `admin`) |
+| Redis | `127.0.0.1:6379` | — | без пароля | — |
+
+`root` — адміністративний користувач MySQL/MariaDB/MongoDB. Для навчальних запитів використовуйте `student`. Користувач `readonly` існує, щоб на практиці побачити обмеження прав: він читає дані, але не може їх змінити чи створити таблицю.
+
+Усі значення задаються у `.env` до першого запуску; у PHP ті самі дані — у `www/config.php`.
+
+## Веб-інтерфейси
+
+| Інструмент | Адреса | Вхід |
+|---|---|---|
+| Adminer | http://localhost:8080 | Server `mysql` / `mariadb` / `postgres`, User `student`, Password `student`, DB `learn` |
+| phpMyAdmin | http://localhost:8081 | одразу MySQL; для MariaDB вкажіть сервер `mariadb` (порт 3306) |
+| pgAdmin | http://localhost:5050 | `admin@example.com` / `admin`; сервер `PostgreSQL (learn)` уже доданий, пароль `student` |
+| Mongo Express | http://localhost:8082 | без авторизації, підключення налаштоване |
+| Redis Commander | http://localhost:8083 | без авторизації |
+
+Adminer і phpMyAdmin працюють із SQL-базами; MongoDB та Redis дивіться через Mongo Express, Redis Commander або NoSQL-консоль тренажера.
+
+## Консольні клієнти
+
+З хоста (якщо клієнти встановлені):
+
+```bash
+mysql -h 127.0.0.1 -P 3306 -u student -p learn
+mysql -h 127.0.0.1 -P 3307 -u student -p learn
+psql -h 127.0.0.1 -p 5432 -U student -d learn
+mongosh "mongodb://root:student@127.0.0.1:27017/learn?authSource=admin"
+redis-cli -h 127.0.0.1 -p 6379
+```
+
+Без клієнтів на хості:
+
+```bash
+./manage.sh shell mysql      # mysql | mariadb | postgres | mongo | redis
+```
+
+DBeaver / DataGrip / TablePlus: ті самі хост, порт і користувач; для PostgreSQL зверніть увагу на схеми `shop` і `shop_big`.
+
+## Навчальні дані
+
+| СУБД | База | Вміст |
+|---|---|---|
+| MySQL | `learn` | `customers`, `products`, `orders` — інтернет-магазин, малі дані |
+| MariaDB | `learn` | `authors`, `books` — бібліотека |
+| PostgreSQL | `learn` (схема `shop`) | `customers`, `products`, `orders` |
+| MongoDB | `learn` | `students`, `courses` |
+| MySQL / MariaDB / PostgreSQL | `shop_big` | 10 000 клієнтів, 1 000 товарів, 100 000 замовлень — для індексів і планів |
+| MongoDB | `shop_big` | `customers`, `products`, `orders` зі вкладеними `items` — для агрегацій |
+| MySQL / MariaDB / PostgreSQL | `sandbox` | копія магазину для експериментів (скидається кнопкою) |
+| Redis | — | порожній; практика в базі №5 через NoSQL-консоль |
+
+Великі бази створюються командою `./manage.sh seed` (близько 10 секунд). Без них вправи з теми «Індекси та плани» не працюватимуть.
 
 ## Керування стендом
-
-Усі типові операції зібрані в `./manage.sh`:
 
 ```bash
 ./manage.sh help               # довідка з усіма командами
 ./manage.sh up                 # зібрати і запустити стенд
 ./manage.sh down               # зупинити й видалити контейнери (дані лишаються)
 ./manage.sh reset              # повністю скинути стенд разом із даними
+./manage.sh restart mysql      # перезапустити сервіс
+./manage.sh ps                 # статус контейнерів
+./manage.sh logs mysql         # логи (з -f)
 ./manage.sh health             # перевірити всі БД та веб-інтерфейси
-./manage.sh test               # самоперевірка: підключення, 55 еталонів, обсяг shop_big
-./manage.sh urls               # показати всі адреси й користувачів
-./manage.sh seed               # згенерувати великі дані shop_big
-./manage.sh seed-status        # показати обсяг даних shop_big
-./manage.sh backup             # резервні копії всіх баз у каталог backups/
-./manage.sh restore backups/mysql_20260921_120000.sql
-./manage.sh shell mysql        # консоль: mysql | mariadb | postgres | mongo | redis
-./manage.sh logs mysql         # логи сервісу
+./manage.sh test               # самоперевірка: підключення, 55 еталонів, обсяг даних
+./manage.sh urls               # усі адреси й користувачі
+./manage.sh seed               # згенерувати shop_big
+./manage.sh seed-status        # показати обсяг shop_big
+./manage.sh backup             # бекап усіх баз у backups/
+./manage.sh restore <файл>     # відновлення з бекапу
+./manage.sh shell mysql        # консоль до бази
 ```
 
-Резервне копіювання охоплює всі п'ять СУБД: `mysqldump`, `mariadb-dump`, `pg_dump`, `mongodump` (архів) і `BGSAVE` + копіювання `dump.rdb` для Redis. Тип відновлення визначається за префіксом імені файлу (`mysql_`, `mariadb_`, `postgres_`, `mongo_`, `redis_`).
+Резервне копіювання використовує `mysqldump`, `mariadb-dump`, `pg_dump` (`--clean --if-exists`), `mongodump --archive --gzip` і `BGSAVE` для Redis. Тип відновлення визначається за префіксом імені файлу: `mysql_`, `mariadb_`, `postgres_`, `mongo_`, `redis_`.
+
+Низькорівневі команди (якщо потрібен повний контроль):
+
+```bash
+docker compose up -d            # запустити всі сервіси
+docker compose build web        # перебудувати PHP-образ після зміни Dockerfile
+docker compose ps               # статус
+docker compose down -v          # видалити контейнери й томи з даними
+```
 
 ## PHP-середовище
 
-### Apache — http://localhost:8000
-
-Файли з папки `www/` обробляються Apache і одразу доступні в браузері: `www/index.php` відкривається як http://localhost:8000/, `www/about.php` — як http://localhost:8000/about.php. Папка змонтована в контейнер, тому зміни видно без перезапуску — достатньо оновити сторінку.
-
-Головна сторінка (http://localhost:8000/) — це dashboard: перевіряє підключення до всіх восьми баз і п'яти СУБД, показує стан сервісів і посилання на розділи тренажера та веб-інструменти.
-
-Доступні розширення PHP: `pdo_mysql`, `mysqli`, `pdo_pgsql`, `pgsql`, `mongodb`, `redis`, `mbstring`, `opcache`. Додатково встановлено Composer.
-
-Параметри підключення зберігаються у `www/config.php`. Хости — це імена сервісів у мережі Compose (`mysql`, `mariadb`, `postgres`, `mongo`, `redis`), порти — внутрішні (3306, 5432, 27017, 6379), а не ті, що опубліковані на хості.
+- Apache + PHP 8.4, каталог `www/` змонтований у контейнер: новий файл `www/about.php` одразу доступний як http://localhost:8000/about.php.
+- Розширення: `pdo_mysql`, `mysqli`, `pdo_pgsql`, `pgsql`, `pdo_sqlite`, `mongodb`, `redis`, `mbstring`, `opcache`; встановлено Composer.
+- Хости для підключення — імена сервісів (`mysql`, `mariadb`, `postgres`, `mongo`, `redis`), порти внутрішні (3306, 5432, 27017, 6379).
+- Параметри підключення — `www/config.php`; спільні функції — `www/lib.php`.
 
 Приклад власного скрипта `www/test.php`:
 
@@ -173,166 +195,85 @@ foreach ($pdo->query('SELECT full_name, city FROM customers') as $row) {
 }
 ```
 
-Запуск скрипта з консолі та перевірка синтаксису:
-
 ```bash
-docker exec -it learn-web php /var/www/html/test.php
-docker exec learn-web php -l /var/www/html/index.php
+docker exec -it learn-web php /var/www/html/test.php   # запуск
+docker exec learn-web php -l /var/www/html/index.php   # перевірка синтаксису
 ```
 
-Після зміни `web/Dockerfile` (наприклад, для додавання нових розширень PHP) образ потрібно перебудувати:
+Після зміни `web/Dockerfile` перебудуйте образ: `./manage.sh up` (він виконує `--build`) або `docker compose build web && docker compose up -d web`.
 
-```bash
-docker compose build web
-docker compose up -d web
+Якщо скрипту потрібен запис у каталог (завантаження, кеш), створіть його з відповідними правами: `mkdir -p www/uploads && chmod 777 www/uploads` — для локального стенду це прийнятно.
+
+## Як розширювати стенд
+
+**Власна SQL-вправа** — додайте об'єкт у `www/tasks/tasks.json`:
+
+```json
+{
+  "id": "select-99",
+  "topic": "SELECT",
+  "level": "Початковий",
+  "target": "mysql",
+  "title": "Назва задачі",
+  "description": "Що потрібно зробити.",
+  "hint": "Підказка.",
+  "reference": "SELECT ...",
+  "ordered": false,
+  "check": "rows"
+}
 ```
 
-Контейнер читає файли з `www/` від імені користувача `www-data`. Якщо скрипту потрібен запис у папку (завантаження файлів, кеш, логи), створіть її з відповідними правами, наприклад `mkdir -p www/uploads && chmod 777 www/uploads` — для локального навчального стенду це прийнятно.
+Поля: `target` — будь-яка ціль із `www/config.php`; `ordered` — чи важливий порядок рядків; `check` — `rows` (порівняння результату) або `plan` (наявність підрядка в плані, тоді додається `plan_must_contain`).
 
-## Консольні клієнти
+**Власна NoSQL-вправа** — у `www/tasks/nosql.json`: для MongoDB вкажіть `engine: "mongo"`, `database` і `reference` у форматі `{"collection": "...", "find": {...}}` або з `pipeline`; для Redis — `engine: "redis"` і `reference` як масив команд.
 
-Якщо на хості встановлені клієнти:
+**Власний конспект** — створіть `docs/12-tema.md`; сторінка `/docs.php` підхопить його автоматично (Markdown із заголовками, таблицями, списками та код-блоками).
 
-```bash
-mysql -h 127.0.0.1 -P 3306 -u student -p learn
-mysql -h 127.0.0.1 -P 3307 -u student -p learn
-psql -h 127.0.0.1 -p 5432 -U student -d learn
-mongosh "mongodb://root:student@127.0.0.1:27017/learn?authSource=admin"
-redis-cli -h 127.0.0.1 -p 6379
-```
-
-Якщо клієнтів немає, використовуйте контейнерні:
-
-```bash
-docker exec -it learn-mysql mysql -ustudent -pstudent learn
-docker exec -it learn-mariadb mariadb -ustudent -pstudent learn
-docker exec -it learn-postgres psql -U student -d learn
-docker exec -it learn-mongo mongosh -u root -p student --authenticationDatabase admin
-docker exec -it learn-redis redis-cli
-```
-
-У графічних клієнтах (DBeaver, DataGrip, TablePlus) використовуйте ті самі хост, порт і користувача. Для PostgreSQL схема за замовчуванням — `shop`, для MongoDB — база `learn`.
-
-## Навчальні дані
-
-| СУБД | База | Таблиці / колекції |
-|---|---|---|
-| MySQL | `learn` | `customers`, `products`, `orders` — інтернет-магазин (5–6 рядків) |
-| MariaDB | `learn` | `authors`, `books` — бібліотека |
-| PostgreSQL | `learn` (схема `shop`) | `customers`, `products`, `orders` — інтернет-магазин |
-| MongoDB | `learn` | `students`, `courses` |
-| Redis | — | порожній, наповнюється вручну |
-| MySQL / MariaDB / PostgreSQL | `shop_big` | те саме, але 10 000 клієнтів, 1 000 товарів, 100 000 замовлень — для індексів і `EXPLAIN` |
-| MongoDB | `shop_big` | `customers`, `products`, `orders` зі вкладеними `items` — для агрегацій |
-| MySQL / MariaDB / PostgreSQL | `sandbox` | копія магазину для вільних експериментів (скидається кнопкою) |
-
-Великі бази створюються командою `./manage.sh seed`. Без них вправи з теми «Індекси та плани» працювати не будуть.
-
-Приклади для старту:
-
-```sql
--- MySQL / PostgreSQL
-SELECT c.full_name, p.title, o.quantity
-FROM orders o
-JOIN customers c ON c.id = o.customer_id
-JOIN products p ON p.id = o.product_id
-ORDER BY o.ordered_at;
-
-SELECT city, COUNT(*) AS customers
-FROM customers
-GROUP BY city
-ORDER BY customers DESC;
-```
-
-```javascript
-// MongoDB
-db.students.find({ grade: { $gte: 85 } }, { name: 1, city: 1, grade: 1 })
-db.students.aggregate([
-  { $unwind: "$courses" },
-  { $group: { _id: "$courses", count: { $sum: 1 } } }
-])
-```
-
-```bash
-# Redis
-redis-cli SET hello "world"
-redis-cli GET hello
-redis-cli TTL hello
-```
-
-## Низькорівневе керування (docker compose)
-
-```bash
-docker compose up -d            # запустити всі сервіси
-docker compose build web        # перебудувати образ PHP після зміни Dockerfile
-docker compose ps               # статус контейнерів
-docker compose logs -f mysql    # логи конкретного сервісу
-docker compose restart postgres # перезапуск одного сервісу
-docker compose stop             # зупинити без видалення
-docker compose down             # зупинити й видалити контейнери (дані лишаються)
-docker compose down -v          # видалити контейнери й томи з даними
-```
-
-Для типових операцій зручніше використовувати `./manage.sh` (див. розділ «Керування стендом»).
-
-Перезапуск одного контейнера:
-
-```bash
-docker restart learn-mysql
-```
+**Власна демонстрація** — додайте SQL/JS-файл у `lessons/` і посилання на нього в конспекті.
 
 ## Структура проєкту
 
 ```
 docker/
-├── docker-compose.yml      # опис усіх сервісів
-├── .env                    # порти та паролі
-├── manage.sh               # керування: up/down/reset/seed/backup/restore/shell
-├── README.md
+├── docker-compose.yml      # 11 сервісів
+├── .env                    # порти й паролі
+├── manage.sh               # керування стендом
 ├── mysql/init/             # схема, пісочниця, користувачі
 ├── mariadb/init/
 ├── postgres/init/
 ├── mongo/init/
-├── seed/                   # генератори shop_big для чотирьох СУБД
-├── pgadmin/servers.json    # попередньо налаштований сервер для pgAdmin
-├── web/Dockerfile          # PHP 8.4 + Apache з розширеннями підключення до БД
-├── www/                    # тренажер: index.php, runner.php, tasks.php, task.php, sandbox.php, docs.php
+├── seed/                   # генератори shop_big (MySQL, MariaDB, PostgreSQL, MongoDB)
+├── pgadmin/servers.json
+├── web/Dockerfile          # PHP 8.4 + Apache + розширення БД
+├── www/                    # тренажер
+│   ├── index.php           # огляд і статус підключень
+│   ├── runner.php          # SQL Runner
+│   ├── nosql.php           # NoSQL-консоль
+│   ├── schema.php          # схема та зв'язки
+│   ├── tasks.php, task.php # вправи
+│   ├── sandbox.php         # пісочниці
+│   ├── locks.php, lock_worker.php  # сценарії транзакцій
+│   ├── docs.php            # рендер конспектів
+│   ├── lib.php, config.php # спільні функції та цілі підключень
 │   ├── assets/style.css
-│   ├── tasks/tasks.json    # 34 SQL-вправи з еталонними запитами
-│   ├── tasks/nosql.json    # 21 NoSQL-вправа (MongoDB, Redis)
-│   └── sandbox/            # SQL для скидання пісочниці
-├── docs/                   # конспекти (11 тем), які рендерить www/docs.php
-├── lessons/                # готові SQL/JS-демонстрації: транзакції, тригери, JSON, fulltext
-└── backups/                # створюється під час ./manage.sh backup
+│   ├── tasks/tasks.json    # 34 SQL-вправи
+│   ├── tasks/nosql.json    # 21 NoSQL-вправа
+│   ├── sandbox/            # SQL скидання пісочниць
+│   └── tools/selftest.php  # самоперевірка (manage.sh test)
+├── docs/                   # 11 конспектів
+├── lessons/                # 11 виконуваних демонстрацій
+└── backups/                # створюється під час backup
 ```
 
-Скрипти з `*/init/` виконуються автоматично **лише при першому створенні тому** (порожній базі). Щоб змінити дані й застосувати скрипти заново, видаліть томи:
-
-```bash
-docker compose down -v
-docker compose up -d
-```
-
-Скрипти MySQL/MariaDB починаються з `SET NAMES utf8mb4` — без цього кирилиця з SQL-файлу збережеться у спотвореному вигляді.
+Скрипти з `*/init/` виконуються **лише при першому створенні тому**. Щоб застосувати їх заново, видаліть томи (`./manage.sh reset`). Для MySQL/MariaDB скрипти починаються з `SET NAMES utf8mb4` — без цього кирилиця з SQL-файлу збережеться спотвореною.
 
 ## Налаштування
 
-### Зміна паролів або портів
+**Пароли й порти.** Відредагуйте `.env` і перезапустіть (`./manage.sh down && ./manage.sh up`). Зміна пароля не оновлює його в уже створеній базі — пароль задається під час ініціалізації, тому потрібне або `ALTER USER`, або скидання томів.
 
-Відредагуйте `.env` і перезапустіть:
+**Новий користувач або база.** MySQL/MariaDB — `CREATE USER` / `CREATE DATABASE` під `root`; PostgreSQL — `CREATE ROLE` / `CREATE DATABASE` під `student` (він суперкористувач у цьому контейнері). Приклад є в конспекті `docs/11-administration.md`.
 
-```bash
-docker compose down
-docker compose up -d
-```
-
-Важливо: зміна пароля в `.env` не оновлює пароль у вже створеній базі — він задається під час ініціалізації. Щоб застосувати новий пароль, потрібно видалити томи (`down -v`).
-
-### Додавання нового користувача або бази
-
-Для MySQL/MariaDB виконайте `CREATE USER` / `CREATE DATABASE` під `root`. Для PostgreSQL — `CREATE ROLE` / `CREATE DATABASE` під користувачем `student`, який має права суперкористувача в цьому контейнері.
-
-Після зміни складу сервісів завжди перевіряйте конфігурацію:
+**Перевірка конфігурації** після зміни compose-файлу:
 
 ```bash
 docker compose config -q
@@ -340,50 +281,50 @@ docker compose config -q
 
 ## Типові проблеми
 
-**`port is already allocated`** — порт зайнятий іншим процесом. Змініть значення `*_PORT` у `.env` і виконайте `docker compose up -d`.
+**`port is already allocated`** — порт зайнятий. Змініть відповідний `*_PORT` у `.env` і виконайте `./manage.sh up`.
 
-**Контейнер постійно перезапускається** — перегляньте логи: `docker compose logs <сервіс>`. Найчастіша причина — пошкоджений або зайнятий тому даних.
+**Контейнер перезапускається** — `./manage.sh logs <сервіс>`; найчастіша причина — пошкоджений том даних.
 
-**Зміни в базі не зберігаються** — переконайтеся, що не виконували `docker compose down -v`; прапорець `-v` видаляє томи.
+**Зміни в базі не зберігаються** — не використовуйте `down -v` / `reset`, якщо хочете зберегти дані.
 
-**pgAdmin не бачить сервер `PostgreSQL (learn)`** — `servers.json` імпортується лише при першому створенні тому `pgadmin_data`. Скиньте його: `docker compose down && docker volume rm learn-db_pgadmin_data && docker compose up -d`, або додайте сервер вручну: Host `postgres`, Port `5432`, Username `student`, Database `learn`.
+**`Table 'shop_big.orders' doesn't exist`** у вправах — не згенеровані великі дані: `./manage.sh seed`.
 
-**Adminer не підключається до MariaDB** — у полі Server вкажіть `mariadb` (не `localhost`): зсередини контейнера адреса — це ім'я сервісу в мережі `learn-db_learn-net`.
+**Кирилиця в консольному MySQL виглядає як `????`** — це кодування клієнта, дані цілі. Використовуйте `./manage.sh shell mysql` (там увімкнено `utf8mb4`) або переглядайте через PHP/Adminer.
 
-**Мала швидкість MongoDB на macOS/Windows** — додайте `platform: linux/amd64` у сервіс `mongo`, якщо образ не має нативної збірки для вашої архітектури.
+**`could not find driver`** — у контейнері `web` немає потрібного розширення PHP. Додайте його в `web/Dockerfile` і перебудуйте образ.
 
-**Кирилиця в консольному клієнті MySQL показується як `????`** — це кодування клієнта, а не втрата даних. Використовуйте `docker exec learn-mysql mysql --default-character-set=utf8mb4 -ustudent -pstudent learn` або переглядайте дані через PHP чи Adminer.
+**pgAdmin не бачить сервер `PostgreSQL (learn)`** — `servers.json` читається при першому створенні тому. Або скиньте том `learn-db_pgadmin_data`, або додайте сервер вручну: Host `postgres`, Port `5432`, User `student`, DB `learn`.
 
-**PHP-скрипт не працює, у логах `could not find driver`** — у контейнері `web` немає потрібного розширення. Додайте його в `web/Dockerfile`, після чого виконайте `docker compose build web && docker compose up -d web`.
+**Adminer не підключається до MariaDB** — у полі Server вкажіть `mariadb` (ім'я сервісу, не `localhost`).
 
-**`servers.json` не оновлюється в pgAdmin** — файл читається при першому запуску; після редагування перезапустіть контейнер `docker compose restart pgadmin`.
+**`readonly` не може створити таблицю** — так і задумано; для експериментів є `sandbox`, для повного доступу — `student`.
 
-**Вправа з індексів падає з `Table 'shop_big.orders' doesn't exist`** — не згенеровані великі дані. Виконайте `./manage.sh seed`.
-
-**`ERROR 1419: You do not have the SUPER privilege`** під час створення функції — у контейнерах MySQL/MariaDB увімкнено `--log-bin-trust-function-creators=1`, проблема може виникнути лише після ручної зміни `command` у compose. Поверніть параметр і перезапустіть сервіс.
-
-**Користувач `readonly` не може створити таблицю в `learn`** — так і задумано: його права обмежені `SELECT`. Для повного доступу використовуйте `student`, для експериментів — базу `sandbox`.
-
-**Пісочниця повертає помилку прав** — переконайтеся, що застосовані init-скрипти `02_sandbox.sql` (вони виконуються автоматично при першому створенні тому). Для наявних томів застосуйте вручну:
+**Пісочниця повертає помилку прав на наявних томах** — застосуйте init-скрипт вручну:
 `docker exec -i -e MYSQL_PWD=root learn-mysql mysql -uroot < mysql/init/02_sandbox.sql`.
 
-## Корисні посилання
+**`ERROR 1419: SUPER privilege`** під час створення функції — у MySQL/MariaDB увімкнено `--log-bin-trust-function-creators=1`; перевірте, чи не змінено `command` у compose.
+
+**MongoDB повільна на macOS/Windows** — додайте `platform: linux/amd64` сервісу `mongo`, якщо немає нативної збірки.
+
+## Швидкі посилання
 
 | Що | Де |
 |---|---|
-| Тренажер | http://localhost:8000 |
+| Тренажер (огляд) | http://localhost:8000 |
 | SQL Runner | http://localhost:8000/runner.php |
 | NoSQL-консоль | http://localhost:8000/nosql.php |
 | Схема баз | http://localhost:8000/schema.php |
 | Вправи (55) | http://localhost:8000/tasks.php |
 | Пісочниця | http://localhost:8000/sandbox.php |
 | Транзакції та блокування | http://localhost:8000/locks.php |
-| Конспекти | http://localhost:8000/docs.php |
-| Готові SQL-демонстрації | каталог `lessons/` |
+| Конспекти (11) | http://localhost:8000/docs.php |
+| Демонстрації | каталог `lessons/` |
+| Зовнішні інструменти | Adminer 8080 · phpMyAdmin 8081 · pgAdmin 5050 · Mongo Express 8082 · Redis Commander 8083 |
 
 ## Повне видалення стенду
 
 ```bash
+./manage.sh down
 docker compose down -v --rmi all
 docker system prune -f
 ```
