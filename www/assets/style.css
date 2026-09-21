@@ -1,0 +1,190 @@
+:root {
+    color-scheme: light dark;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    margin: 0;
+    padding: 0 0 3rem;
+    line-height: 1.55;
+}
+
+header {
+    background: #1f2937;
+    color: #fff;
+    padding: 0.7rem 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    align-items: center;
+}
+
+header strong {
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
+}
+
+.menu {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+header a {
+    color: #fff;
+    text-decoration: none;
+    opacity: 0.85;
+}
+
+header a:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+main {
+    padding: 1.5rem 2rem;
+    max-width: 1150px;
+}
+
+h1 {
+    margin-top: 0;
+}
+
+h2 {
+    margin-top: 2rem;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 1.5rem;
+}
+
+th,
+td {
+    border: 1px solid #8884;
+    padding: 0.4rem 0.65rem;
+    text-align: left;
+    vertical-align: top;
+    white-space: pre-wrap;
+}
+
+th {
+    background: #8882;
+}
+
+.ok,
+.success {
+    color: #1a7f37;
+    font-weight: 600;
+}
+
+.fail,
+.error {
+    color: #c0392b;
+    font-weight: 600;
+}
+
+form {
+    margin-bottom: 1.25rem;
+}
+
+textarea {
+    width: 100%;
+    min-height: 130px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.95rem;
+    padding: 0.6rem;
+    border: 1px solid #8886;
+    border-radius: 6px;
+    background: #8881;
+    color: inherit;
+}
+
+select,
+button,
+input[type="text"] {
+    padding: 0.45rem 0.65rem;
+    font-size: 0.95rem;
+    border-radius: 6px;
+    border: 1px solid #8886;
+    background: #8881;
+    color: inherit;
+}
+
+button {
+    cursor: pointer;
+    background: #1f2937;
+    color: #fff;
+    border-color: #1f2937;
+}
+
+button.secondary {
+    background: transparent;
+    color: inherit;
+    border-color: #8886;
+}
+
+.controls {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 0.75rem 0;
+}
+
+.card {
+    border: 1px solid #8884;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.card h3 {
+    margin: 0 0 0.35rem;
+}
+
+.card p {
+    margin: 0.35rem 0;
+}
+
+.tag {
+    display: inline-block;
+    background: #8882;
+    border-radius: 999px;
+    padding: 0.08rem 0.6rem;
+    font-size: 0.8rem;
+    margin-right: 0.4rem;
+}
+
+pre {
+    background: #8881;
+    padding: 0.75rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.hint {
+    color: #888;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+a {
+    color: #2563eb;
+}
+
+@media (prefers-color-scheme: dark) {
+    a {
+        color: #7ab7ff;
+    }
+}

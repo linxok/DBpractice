@@ -1,0 +1,71 @@
+Тема: базові команди Redis
+Довідник: виконуйте команди в redis-cli вручну або через Redis Commander (http://localhost:8083).
+
+Підключення:
+  docker exec -it learn-redis redis-cli
+
+Рядки (strings):
+  SET user:1:name "Олена"
+  GET user:1:name
+  APPEND user:1:name " Ковальчук"
+  STRLEN user:1:name
+  INCR counter:visits
+  INCRBY counter:visits 5
+  DECR counter:visits
+  MSET a 1 b 2 c 3
+  MGET a b c
+
+Час життя ключів:
+  SET session:abc "data" EX 60
+  TTL session:abc
+  PERSIST session:abc
+  EXPIRE session:abc 120
+
+Списки (lists):
+  RPUSH queue:jobs "job1" "job2" "job3"
+  LLEN queue:jobs
+  LRANGE queue:jobs 0 -1
+  LPOP queue:jobs
+  RPOP queue:jobs
+
+Хеші (hashes):
+  HSET product:1 title "Ноутбук" price 24999 stock 12
+  HGET product:1 title
+  HGETALL product:1
+  HINCRBY product:1 stock -1
+
+Множини (sets):
+  SADD tags:sql "select" "join" "index"
+  SMEMBERS tags:sql
+  SISMEMBER tags:sql "join"
+  SINTER tags:sql tags:nosql
+
+Сортедовані множини (sorted sets):
+  ZADD rating 92 "Олена"
+  ZADD rating 85 "Ігор"
+  ZRANGE rating 0 -1 WITHSCORES
+  ZREVRANK rating "Олена"
+
+Транзакції:
+  MULTI
+  INCR counter:orders
+  INCR counter:events
+  EXEC
+
+Публікація та підписка (у двох терміналах):
+  Термінал A: SUBSCRIBE news
+  Термінал B: PUBLISH news "hello"
+
+Службові:
+  KEYS user:*
+  SCAN 0 MATCH user:* COUNT 10
+  EXISTS user:1:name
+  DEL user:1:name
+  TYPE user:1:name
+  DBSIZE
+  FLUSHDB
+
+Патерн кешу з TTL:
+  SET cache:catalog "[...]" EX 300
+  GET cache:catalog
+  -- якщо ключа немає, застосунок іде в базу, формує відповідь і кладе її в кеш

@@ -1,0 +1,267 @@
+[
+  {
+    "id": "mongo-01",
+    "engine": "mongo",
+    "topic": "MongoDB",
+    "level": "Початковий",
+    "database": "learn",
+    "title": "Усі студенти",
+    "description": "Поверніть усі документи колекції students.",
+    "hint": "Укажіть collection і порожній фільтр find: {}.",
+    "ordered": false,
+    "reference": {"collection": "students", "find": {}}
+  },
+  {
+    "id": "mongo-02",
+    "engine": "mongo",
+    "topic": "MongoDB",
+    "level": "Початковий",
+    "database": "learn",
+    "title": "Студенти з високим балом",
+    "description": "Поверніть студентів, у яких grade не менший за 80.",
+    "hint": "Оператор $gte у фільтрі find.",
+    "ordered": false,
+    "reference": {"collection": "students", "find": {"grade": {"$gte": 80}}}
+  },
+  {
+    "id": "mongo-03",
+    "engine": "mongo",
+    "topic": "MongoDB",
+    "level": "Початковий",
+    "database": "learn",
+    "title": "Лише імена з Києва",
+    "description": "Для студентів із Києва поверніть лише поля name і city (без _id).",
+    "hint": "projection: {\"name\": 1, \"city\": 1, \"_id\": 0}.",
+    "ordered": false,
+    "reference": {
+      "collection": "students",
+      "find": {"city": "Київ"},
+      "projection": {"name": 1, "city": 1, "_id": 0}
+    }
+  },
+  {
+    "id": "mongo-04",
+    "engine": "mongo",
+    "topic": "MongoDB",
+    "level": "Початковий",
+    "database": "learn",
+    "title": "Найкращі два студенти",
+    "description": "Відсортуйте студентів за спаданням grade і поверніть перші два документи.",
+    "hint": "sort: {\"grade\": -1} і limit: 2.",
+    "ordered": true,
+    "reference": {"collection": "students", "find": {}, "sort": {"grade": -1}, "limit": 2}
+  },
+  {
+    "id": "mongo-05",
+    "engine": "mongo",
+    "topic": "MongoDB",
+    "level": "Середній",
+    "database": "learn",
+    "title": "Скільки студентів",
+    "description": "Порахуйте кількість документів у колекції students. Результат — документ із полем total.",
+    "hint": "Стадія {\"$count\": \"total\"}.",
+    "ordered": false,
+    "reference": {"collection": "students", "pipeline": [{"$count": "total"}]}
+  },
+  {
+    "id": "mongo-06",
+    "engine": "mongo",
+    "topic": "MongoDB",
+    "level": "Середній",
+    "database": "learn",
+    "title": "Середній бал",
+    "description": "Обчисліть середній grade студентів. Поверніть документ із полем avg.",
+    "hint": "$group з _id: null та $avg.",
+    "ordered": false,
+    "reference": {
+      "collection": "students",
+      "pipeline": [{"$group": {"_id": null, "avg": {"$avg": "$grade"}}}]
+    }
+  },
+  {
+    "id": "mongo-07",
+    "engine": "mongo",
+    "topic": "MongoDB",
+    "level": "Початковий",
+    "database": "learn",
+    "title": "Хто вивчає SQL",
+    "description": "Поверніть студентів, у яких у масиві courses є курс «SQL».",
+    "hint": "Фільтр {\"courses\": \"SQL\"} знаходить збіг в масиві.",
+    "ordered": false,
+    "reference": {"collection": "students", "find": {"courses": "SQL"}}
+  },
+  {
+    "id": "mongo-08",
+    "engine": "mongo",
+    "topic": "MongoDB",
+    "level": "Середній",
+    "database": "learn",
+    "title": "Популярність курсів",
+    "description": "Розгорніть масив courses і порахуйте, скільки студентів на кожному курсі. Колонки: _id (код курсу), students. Відсортуйте за спаданням кількості, за рівної — за кодом.",
+    "hint": "$unwind, $group з $sum: 1, $sort.",
+    "ordered": true,
+    "reference": {
+      "collection": "students",
+      "pipeline": [
+        {"$unwind": "$courses"},
+        {"$group": {"_id": "$courses", "students": {"$sum": 1}}},
+        {"$sort": {"students": -1, "_id": 1}}
+      ]
+    }
+  },
+  {
+    "id": "mongo-09",
+    "engine": "mongo",
+    "topic": "MongoDB",
+    "level": "Середній",
+    "database": "learn",
+    "title": "Студенти за містами",
+    "description": "Порахуйте кількість студентів у кожному місті. Колонки: _id (місто), students. Відсортуйте за містом.",
+    "hint": "$group за $city і $sort за _id.",
+    "ordered": true,
+    "reference": {
+      "collection": "students",
+      "pipeline": [
+        {"$group": {"_id": "$city", "students": {"$sum": 1}}},
+        {"$sort": {"_id": 1}}
+      ]
+    }
+  },
+  {
+    "id": "mongo-10",
+    "engine": "mongo",
+    "topic": "MongoDB",
+    "level": "Початковий",
+    "database": "learn",
+    "title": "Найкращий студент",
+    "description": "Поверніть один документ — студента з найвищим grade.",
+    "hint": "sort: {\"grade\": -1}, limit: 1.",
+    "ordered": true,
+    "reference": {"collection": "students", "find": {}, "sort": {"grade": -1}, "limit": 1}
+  },
+  {
+    "id": "mongo-11",
+    "engine": "mongo",
+    "topic": "MongoDB",
+    "level": "Середній",
+    "database": "shop_big",
+    "title": "Завершені замовлення (100 000)",
+    "description": "Порахуйте кількість замовлень зі статусом done у великій базі. Результат — документ із полем orders.",
+    "hint": "$match, потім $count.",
+    "ordered": false,
+    "reference": {
+      "collection": "orders",
+      "pipeline": [{"$match": {"status": "done"}}, {"$count": "orders"}]
+    }
+  },
+  {
+    "id": "mongo-12",
+    "engine": "mongo",
+    "topic": "MongoDB",
+    "level": "Просунутий",
+    "database": "shop_big",
+    "title": "Топ-3 товари за проданими одиницями",
+    "description": "Розгорніть масив items у замовленнях і знайдіть три товари з найбільшою кількістю проданих одиниць. Колонки: _id (productId), title, units. Порядок — за спаданням units, за рівної кількості — за _id.",
+    "hint": "$unwind \"$items\", $group з $sum: \"$items.quantity\" та $first для title, $sort, $limit.",
+    "ordered": true,
+    "reference": {
+      "collection": "orders",
+      "pipeline": [
+        {"$unwind": "$items"},
+        {"$group": {"_id": "$items.productId", "title": {"$first": "$items.title"}, "units": {"$sum": "$items.quantity"}}},
+        {"$sort": {"units": -1, "_id": 1}},
+        {"$limit": 3}
+      ]
+    }
+  },
+  {
+    "id": "redis-01",
+    "engine": "redis",
+    "topic": "Redis",
+    "level": "Початковий",
+    "title": "Створити рядок",
+    "description": "Створіть ключ user:1:name зі значенням «Олена».",
+    "hint": "Команда SET.",
+    "reference": ["SET user:1:name \"Олена\""]
+  },
+  {
+    "id": "redis-02",
+    "engine": "redis",
+    "topic": "Redis",
+    "level": "Початковий",
+    "title": "Лічильник відвідувань",
+    "description": "Створіть ключ counter:visits зі значенням 5, а потім збільште його на 10.",
+    "hint": "SET і INCRBY.",
+    "reference": ["SET counter:visits 5", "INCRBY counter:visits 10"]
+  },
+  {
+    "id": "redis-03",
+    "engine": "redis",
+    "topic": "Redis",
+    "level": "Початковий",
+    "title": "Хеш товару",
+    "description": "Створіть хеш product:1 з полями title = «Ноутбук» і price = 24999.",
+    "hint": "HSET product:1 title \"Ноутбук\" price 24999.",
+    "reference": ["HSET product:1 title \"Ноутбук\" price 24999"]
+  },
+  {
+    "id": "redis-04",
+    "engine": "redis",
+    "topic": "Redis",
+    "level": "Початковий",
+    "title": "Черга завдань",
+    "description": "Створіть список queue:jobs із трьох елементів у порядку job1, job2, job3.",
+    "hint": "RPUSH queue:jobs job1 job2 job3.",
+    "reference": ["RPUSH queue:jobs job1 job2 job3"]
+  },
+  {
+    "id": "redis-05",
+    "engine": "redis",
+    "topic": "Redis",
+    "level": "Початковий",
+    "title": "Множина тегів",
+    "description": "Створіть множину tags:sql з елементами select, join та index.",
+    "hint": "SADD tags:sql select join index.",
+    "reference": ["SADD tags:sql select join index"]
+  },
+  {
+    "id": "redis-06",
+    "engine": "redis",
+    "topic": "Redis",
+    "level": "Середній",
+    "title": "Рейтинг студентів",
+    "description": "Створіть сортедовану множину rating з балами: «Олена» — 92, «Ігор» — 85.",
+    "hint": "ZADD rating 92 \"Олена\".",
+    "reference": ["ZADD rating 92 \"Олена\"", "ZADD rating 85 \"Ігор\""]
+  },
+  {
+    "id": "redis-07",
+    "engine": "redis",
+    "topic": "Redis",
+    "level": "Середній",
+    "title": "Взяти завдання з черги",
+    "description": "Створіть список queue:jobs із елементів a, b, c, а потім вилучіть перший елемент зліва.",
+    "hint": "RPUSH, потім LPOP.",
+    "reference": ["RPUSH queue:jobs a b c", "LPOP queue:jobs"]
+  },
+  {
+    "id": "redis-08",
+    "engine": "redis",
+    "topic": "Redis",
+    "level": "Середній",
+    "title": "Видалити поле з хешу",
+    "description": "Створіть хеш user:1 з полями name = «Олена» та age = 30, після чого видаліть поле age.",
+    "hint": "HSET, потім HDEL.",
+    "reference": ["HSET user:1 name \"Олена\" age 30", "HDEL user:1 age"]
+  },
+  {
+    "id": "redis-09",
+    "engine": "redis",
+    "topic": "Redis",
+    "level": "Середній",
+    "title": "Списання зі складу",
+    "description": "Створіть хеш product:2 з полем stock = 10, після чого зменште stock на 3.",
+    "hint": "HSET і HINCRBY з від'ємним кроком.",
+    "reference": ["HSET product:2 stock 10", "HINCRBY product:2 stock -3"]
+  }
+]
