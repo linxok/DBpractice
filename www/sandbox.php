@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/lib.php';
+csrf_start();
 
 $message = null;
 $errorMessage = null;
@@ -76,6 +77,7 @@ page_header('Пісочниця');
         ?>
         <div class="controls">
             <form method="post" style="margin: 0;">
+                <?= csrf_field() ?>
                 <input type="hidden" name="reset" value="<?= e($which) ?>">
                 <button type="submit" class="secondary" onclick="return confirm('Скинути пісочницю до початкового стану?');">Скинути</button>
             </form>

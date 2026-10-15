@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/lib.php';
+csrf_start();
 
 function line(string $step, string $result, string $detail = ''): array
 {
@@ -144,6 +145,9 @@ $errorMessage = null;
 
 if ($scenario !== '') {
     try {
+        if (!in_array($selectedTarget, ['sandbox_mysql', 'sandbox_mariadb', 'sandbox_postgres'], true)) {
+            throw new RuntimeException('Сценарії дозволені лише в окремих пісочницях.');
+        }
         $log = match ($scenario) {
             'lock' => scenario_lock($selectedTarget),
             'isolation' => scenario_isolation($selectedTarget),
@@ -165,6 +169,7 @@ page_header('Транзакції та блокування');
 </p>
 
 <form method="post">
+    <?= csrf_field() ?>
     <div class="controls">
         <label>База:
             <select name="target">

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/lib.php';
+csrf_start();
 
 $id = (string) ($_GET['id'] ?? '');
 $task = task_by_id($id);
@@ -90,6 +91,7 @@ page_header($task['title']);
 </div>
 
 <form method="post" action="/task.php?id=<?= urlencode($task['id']) ?>">
+    <?= csrf_field() ?>
     <?php if ($engine === 'sql'): ?>
         <textarea name="sql" placeholder="SELECT ..."><?= e($inputValue) ?></textarea>
     <?php elseif ($engine === 'mongo'): ?>

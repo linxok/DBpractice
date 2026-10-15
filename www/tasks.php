@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/lib.php';
+csrf_start();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_progress'])) {
     reset_task_progress();
@@ -32,6 +33,7 @@ page_header('Вправи');
     Виконано <strong><?= $doneCount ?></strong> з <strong><?= count($allTasks) ?></strong>.
     <?php if ($doneCount > 0): ?>
         <form method="post" style="display: inline;">
+            <?= csrf_field() ?>
             <button type="submit" name="reset_progress" value="1" class="secondary" onclick="return confirm('Скинути позначки виконаних вправ?');">скинути прогрес</button>
         </form>
     <?php endif; ?>

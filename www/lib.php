@@ -43,6 +43,35 @@ function e(string $value): string
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 }
 
+function csrf_start(): void
+{
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_set_cookie_params([
+            'httponly' => true,
+            'samesite' => 'Lax',
+            'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        ]);
+        session_start();
+    }
+
+    if (!isset($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $submitted = $_POST['_csrf'] ?? null;
+        if (!is_string($submitted) || !hash_equals($_SESSION['csrf_token'], $submitted)) {
+            http_response_code(403);
+            exit('Запит відхилено: недійсний CSRF-токен.');
+        }
+    }
+}
+
+function csrf_field(): string
+{
+    return '<input type="hidden" name="_csrf" value="' . e((string) $_SESSION['csrf_token']) . '">';
+}
+
 function strip_literals(string $sql): string
 {
     return preg_replace("/'(?:[^']|'')*'/", "''", $sql) ?? $sql;
@@ -67,14 +96,33 @@ function has_multiple_statements(string $sql): bool
     return str_contains(strip_literals($sql), ';');
 }
 
-function run_sql(string $key, string $sql, int $limit = 300): array
+function run_sql(string $key, string $sql, int $limit = 300, bool $readOnly = true): array
 {
+    $target = target($key);
     $pdo = connect($key);
+    if ($target['driver'] === 'pgsql') {
+        $pdo->exec("SET statement_timeout = '5s'");
+    } elseif (str_starts_with($key, 'mariadb')) {
+        $pdo->exec('SET SESSION max_statement_time = 5');
+    } else {
+        $pdo->exec('SET SESSION MAX_EXECUTION_TIME = 5000');
+    }
+
+    if ($readOnly) {
+        if ($target['driver'] === 'mysql') {
+            $pdo->exec('SET TRANSACTION READ ONLY');
+        }
+        $pdo->beginTransaction();
+        if ($target['driver'] === 'pgsql') {
+            $pdo->exec('SET TRANSACTION READ ONLY');
+        }
+    }
+
     $start = microtime(true);
-    $stmt = $pdo->query($sql);
     $rows = [];
     $truncated = false;
     try {
+        $stmt = $pdo->query($sql);
         while ($row = $stmt->fetch()) {
             if (count($rows) >= $limit) {
                 $truncated = true;
@@ -83,7 +131,12 @@ function run_sql(string $key, string $sql, int $limit = 300): array
             $rows[] = $row;
         }
     } finally {
-        $stmt->closeCursor();
+        if (isset($stmt)) {
+            $stmt->closeCursor();
+        }
+        if ($readOnly && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
     }
     $elapsed = (microtime(true) - $start) * 1000;
     $columns = $rows !== [] ? array_keys($rows[0]) : [];
@@ -473,6 +526,10 @@ function run_mongo_spec(array $spec, int $limit = 200): array
     }
 
     $database = (string) ($spec['database'] ?? 'learn');
+    if (!in_array($database, ['learn', 'shop_big'], true)) {
+        throw new RuntimeException('Неприпустима база MongoDB.');
+    }
+    $limit = max(1, min($limit, 500));
     $collection = (string) $spec['collection'];
     if (preg_match('/[^A-Za-z0-9_]/', $collection) === 1) {
         throw new RuntimeException('Неприпустима назва колекції.');
@@ -483,10 +540,13 @@ function run_mongo_spec(array $spec, int $limit = 200): array
     $rows = [];
 
     if (isset($spec['pipeline'])) {
-        if (!is_array($spec['pipeline'])) {
+        if (!is_array($spec['pipeline']) || !array_is_list($spec['pipeline'])) {
             throw new RuntimeException('Поле "pipeline" має бути масивом стадій.');
         }
         foreach ($spec['pipeline'] as $stage) {
+            if (!is_array($stage) || count($stage) !== 1) {
+                throw new RuntimeException('Кожна стадія pipeline має бути об’єктом з одним оператором.');
+            }
             foreach (array_keys((array) $stage) as $operator) {
                 if (in_array($operator, ['$out', '$merge'], true)) {
                     throw new RuntimeException('Стадії $out і $merge у навчальному середовищі заборонені.');
@@ -495,8 +555,9 @@ function run_mongo_spec(array $spec, int $limit = 200): array
         }
         $command = new MongoDB\Driver\Command([
             'aggregate' => $collection,
-            'pipeline' => $spec['pipeline'],
+            'pipeline' => [...$spec['pipeline'], ['$limit' => $limit]],
             'cursor' => new stdClass(),
+            'maxTimeMS' => 5000,
         ]);
         $cursor = $manager->executeCommand($database, $command, ['typeMap' => $typeMap]);
         foreach ($cursor as $document) {
@@ -509,6 +570,7 @@ function run_mongo_spec(array $spec, int $limit = 200): array
         }
         $options = [
             'limit' => max(1, min($limit, (int) ($spec['limit'] ?? $limit))),
+            'maxTimeMS' => 5000,
             'typeMap' => $typeMap,
         ];
         if (isset($spec['sort']) && is_array($spec['sort'])) {
@@ -565,11 +627,11 @@ function redis_state(Redis $redis): array
     return $state;
 }
 
-function run_redis_commands(array $lines, int $database = 4): array
+function run_redis_commands(array $lines): array
 {
     $redis = new Redis();
     $redis->connect(config()['redis']['host'], config()['redis']['port'], 2.0);
-    $redis->select($database);
+    $redis->select(4);
     $redis->flushDB();
 
     $output = [];
@@ -585,8 +647,14 @@ function run_redis_commands(array $lines, int $database = 4): array
         if ($parts === []) {
             continue;
         }
+        $command = strtoupper((string) $parts[0]);
+        if (!redis_command_allowed($command)) {
+            $error = 'Команда ' . $command . ' не дозволена у навчальній консолі.';
+            $output[] = ['command' => $line, 'result' => null, 'error' => $error];
+            continue;
+        }
         try {
-            $result = $redis->rawCommand($parts[0], ...array_slice($parts, 1));
+            $result = $redis->rawCommand($command, ...array_slice($parts, 1));
             $output[] = ['command' => $line, 'result' => format_redis_reply($result), 'error' => null];
         } catch (Throwable $exception) {
             $error = $exception->getMessage();
@@ -598,6 +666,20 @@ function run_redis_commands(array $lines, int $database = 4): array
     $redis->close();
 
     return ['output' => $output, 'state' => $state, 'error' => $error];
+}
+
+function redis_command_allowed(string $command): bool
+{
+    static $allowed = [
+        'APPEND', 'DECR', 'DECRBY', 'DEL', 'DISCARD', 'EXISTS', 'EXPIRE', 'EXPIREAT',
+        'GET', 'HDEL', 'HEXISTS', 'HGET', 'HGETALL', 'HINCRBY', 'HMGET', 'HSET',
+        'INCR', 'INCRBY', 'LPOP', 'LLEN', 'LRANGE', 'LREM', 'LPUSH', 'MGET', 'MSET',
+        'MULTI', 'PERSIST', 'PTTL', 'RPOP', 'RPUSH', 'SADD', 'SCARD', 'SET', 'SETNX',
+        'SISMEMBER', 'SMEMBERS', 'SREM', 'STRLEN', 'TTL', 'ZADD', 'ZCARD', 'ZRANGE',
+        'ZRANK', 'ZREM', 'ZSCORE', 'EXEC',
+    ];
+
+    return in_array($command, $allowed, true);
 }
 
 function format_redis_reply(mixed $value): string

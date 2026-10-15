@@ -5,6 +5,11 @@ require __DIR__ . '/lib.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
+if (!in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true)) {
+    http_response_code(403);
+    exit(json_encode(['ok' => false, 'error' => 'Доступ дозволений лише з локального PHP-процесу.'], JSON_UNESCAPED_UNICODE));
+}
+
 $scenario = (string) ($_GET['scenario'] ?? '');
 $key = (string) ($_GET['db'] ?? 'sandbox_mysql');
 $log = [];
@@ -15,7 +20,12 @@ function line(string $step, string $result, string $detail = ''): array
 }
 
 try {
-    target($key);
+    if (!in_array($key, ['sandbox_mysql', 'sandbox_mariadb', 'sandbox_postgres'], true)) {
+        throw new RuntimeException('Сценарії дозволені лише в окремих пісочницях.');
+    }
+    if (!in_array($scenario, ['deadlock_a', 'deadlock_b'], true)) {
+        throw new RuntimeException('Невідомий сценарій блокування.');
+    }
     $driver = target($key)['driver'];
     $pdo = connect($key);
 

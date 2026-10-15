@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/lib.php';
+csrf_start();
 
 $mongoDatabases = ['learn', 'shop_big'];
 $mongoDb = (string) ($_POST['mongo_db'] ?? 'learn');
@@ -17,11 +18,6 @@ $mongoSummary = '';
 $redisCommands = trim((string) ($_POST['redis_commands'] ?? ''));
 $redisResult = null;
 $redisError = null;
-
-$forbiddenRedis = [
-    'FLUSHALL', 'SHUTDOWN', 'CONFIG', 'DEBUG', 'SLAVEOF', 'REPLICAOF',
-    'MONITOR', 'SAVE', 'BGREWRITEAOF', 'BGSAVE', 'MIGRATE', 'SWAPDB', 'ACL',
-];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_mongo']) && $mongoJson !== '') {
     try {
@@ -52,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_redis']) && $redi
         }
         $parts = str_getcsv($line, ' ', '"', '');
         $command = strtoupper((string) ($parts[0] ?? ''));
-        if (in_array($command, $forbiddenRedis, true)) {
+        if (!redis_command_allowed($command)) {
             $forbiddenFound = $command;
             break;
         }
@@ -63,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_redis']) && $redi
         $redisError = 'Команда ' . $forbiddenFound . ' заборонена у навчальній консолі.';
     } else {
         try {
-            $redisResult = run_redis_commands($filtered, 5);
+            $redisResult = run_redis_commands($filtered);
             $redisError = $redisResult['error'];
         } catch (Throwable $error) {
             $redisError = $error->getMessage();
@@ -81,6 +77,7 @@ page_header('NoSQL-консоль');
 
 <h2>MongoDB</h2>
 <form method="post">
+    <?= csrf_field() ?>
     <div class="controls">
         <label>База:
             <select name="mongo_db">
@@ -117,6 +114,7 @@ document.querySelectorAll('button[data-mongo]').forEach(function (button) {
 
 <h2>Redis — база №5</h2>
 <form method="post">
+    <?= csrf_field() ?>
     <div class="controls">
         <button type="submit" name="run_redis" value="1">Виконати</button>
         <button type="button" class="secondary" data-redis='SET user:1:name "Олена"

@@ -19,6 +19,17 @@ function report(bool $ok, string $label, string $detail = ''): void
     printf("  %s %-44s %s\n", $ok ? 'OK  ' : 'FAIL', $label, $detail);
 }
 
+function is_write_block_error(Throwable $error): bool
+{
+    $message = strtolower($error->getMessage());
+    foreach (['read-only', 'read only', 'permission denied', 'command denied'] as $needle) {
+        if (str_contains($message, $needle)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 echo "Підключення до баз:\n";
 foreach (targets() as $key => $info) {
     try {
@@ -56,6 +67,41 @@ foreach ($tasks as $task) {
     }
 }
 report($bad === 0, 'Еталони (' . count($tasks) . ' шт.)', $bad > 0 ? 'проблемних: ' . $bad : '');
+
+echo "\nЗахист read-only запитів:\n";
+foreach ([
+    'mysql' => 'customers',
+    'mariadb' => 'authors',
+    'postgres' => 'customers',
+] as $key => $table) {
+    try {
+        run_sql($key, 'DELETE FROM ' . $table . ' WHERE 1 = 0');
+        report(false, $key . ' блокує DML у read-only режимі', 'DELETE несподівано виконано');
+    } catch (Throwable $error) {
+        report(
+            is_write_block_error($error),
+            $key . ' блокує DML за роллю або транзакцією',
+            $error->getMessage()
+        );
+    }
+}
+try {
+    run_sql(
+        'postgres',
+        'WITH attempted_write AS (DELETE FROM customers WHERE 1 = 0 RETURNING id) SELECT COUNT(*) FROM attempted_write'
+    );
+    report(false, 'PostgreSQL блокує DML у CTE', 'запит несподівано виконано');
+} catch (Throwable $error) {
+    report(
+        is_write_block_error($error),
+        'PostgreSQL блокує DML у CTE',
+        $error->getMessage()
+    );
+}
+report(
+    !redis_command_allowed('SELECT') && !redis_command_allowed('FLUSHDB') && redis_command_allowed('HSET'),
+    'Redis-консоль обмежена allowlist-командами'
+);
 
 echo "\nNoSQL-еталони:\n";
 $nosqlTasks = nosql_tasks();

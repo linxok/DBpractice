@@ -163,14 +163,17 @@ EOF
 cmd_seed() {
     info "MySQL: shop_big"
     docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" learn-mysql mysql -uroot < seed/mysql_big.sql
+    docker exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" learn-mysql mysql -uroot -e "GRANT SELECT ON shop_big.* TO 'readonly'@'%';"
     ok "MySQL готово"
 
     info "MariaDB: shop_big"
     docker exec -i -e MYSQL_PWD="$MARIADB_ROOT_PASSWORD" learn-mariadb mariadb -uroot --default-character-set=utf8mb4 < seed/mariadb_big.sql
+    docker exec -e MYSQL_PWD="$MARIADB_ROOT_PASSWORD" learn-mariadb mariadb -uroot -e "GRANT SELECT ON shop_big.* TO 'readonly'@'%';"
     ok "MariaDB готово"
 
     info "PostgreSQL: shop_big"
     docker exec -i learn-postgres psql -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" < seed/postgres_big.sql
+    docker exec learn-postgres psql -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "GRANT USAGE ON SCHEMA shop_big TO readonly; GRANT SELECT ON ALL TABLES IN SCHEMA shop_big TO readonly; ALTER DEFAULT PRIVILEGES IN SCHEMA shop_big GRANT SELECT ON TABLES TO readonly;"
     ok "PostgreSQL готово"
 
     info "MongoDB: shop_big"

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/lib.php';
+csrf_start();
 
 $selectedTarget = (string) ($_POST['target'] ?? $_GET['target'] ?? 'mysql');
 $sql = trim((string) ($_POST['sql'] ?? ''));
@@ -32,7 +33,7 @@ if ($sql !== '') {
         }
 
         $limit = $export === 'csv' ? 5000 : 300;
-        $result = run_sql($selectedTarget, $executed, $limit);
+        $result = run_sql($selectedTarget, $executed, $limit, !$writable);
     } catch (Throwable $error) {
         $errorMessage = $error->getMessage();
     }
@@ -63,6 +64,7 @@ page_header('SQL Runner');
 <p>Виконуйте SELECT-запити проти будь-якої бази стенду та одразу бачте план виконання й час. Для баз із групи «Пісочниця» дозволені будь-які операції: INSERT, UPDATE, DELETE, CREATE, DROP — це безпечне місце для експериментів, яке можна скинути на сторінці <a href="/sandbox.php">пісочниці</a>.</p>
 
 <form method="post">
+    <?= csrf_field() ?>
     <div class="controls">
         <label>База:
             <select name="target"><?= target_options($selectedTarget) ?></select>

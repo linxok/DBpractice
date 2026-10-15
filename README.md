@@ -1,6 +1,6 @@
 # Learn DB — стенд для вивчення баз даних
 
-Локальний Docker Compose стенд із п'ятьма СУБД, веб-тренажером і п'ятьма інструментами адміністрування. Призначений для практичного навчання: SQL і діалекти MySQL / MariaDB / PostgreSQL, MongoDB, Redis, транзакції, індекси, права доступу та написання PHP-застосунків із доступом до баз.
+Локальний Docker Compose стенд із п'ятьма СУБД, веб-тренажером і п'ятьма інструментами адміністрування. Призначений для практичного навчання: SQL і діалекти MySQL / MariaDB / PostgreSQL, MongoDB, Redis, транзакції, індекси, права доступу та написання PHP-застосунків із доступом до баз. Порти прив'язані лише до loopback; стенд не призначений для публікації в мережі чи використання в production.
 
 Головне — тренажер на http://localhost:8000: 55 вправ із автоматичною перевіркою, SQL Runner із планами запитів, NoSQL-консоль, пісочниці, онлайн-демонстрації блокувань і 11 конспектів українською.
 
@@ -28,9 +28,10 @@
 
 ```bash
 cd docker
+cp .env.example .env  # локальна конфігурація, не комітити
 ./manage.sh up        # перший запуск: образи + збірка web (кілька хвилин)
 ./manage.sh seed      # великі дані shop_big для тем індексів
-./manage.sh test      # самоперевірка: підключення, 55 еталонів, обсяг даних
+./manage.sh test      # підключення, еталони, read-only захист, обсяг даних
 ```
 
 Після цього відкрийте http://localhost:8000 — головну сторінку тренажера, або `./manage.sh urls` для переліку всіх адрес.
@@ -45,15 +46,17 @@ cd docker
 | `mariadb` | mariadb:11.4 | Форк MySQL | 3307 |
 | `postgres` | postgres:17-alpine | Реляційна СУБД | 5432 |
 | `mongo` | mongo:7 | Документо-орієнтована СУБД | 27017 |
+| `mongo-bootstrap` | mongo:7 | Створює/оновлює read-only користувача застосунку | — |
 | `redis` | redis:7-alpine | Сховище ключ-значення | 6379 |
 | `web` | php:8.4-apache (власна збірка) | PHP/Apache: тренажер, вправи, пісочниці | 8000 |
-| `adminer` | adminer:latest | Веб-клієнт для SQL-баз | 8080 |
-| `phpmyadmin` | phpmyadmin:latest | Веб-клієнт для MySQL/MariaDB | 8081 |
-| `pgadmin` | dpage/pgadmin4:latest | Веб-клієнт для PostgreSQL | 5050 |
-| `mongo-express` | mongo-express:latest | Веб-клієнт для MongoDB | 8082 |
-| `redis-commander` | rediscommander/redis-commander | Веб-клієнт для Redis | 8083 |
+| `adminer` | adminer:6.1.2-standalone | Веб-клієнт для SQL-баз | 8080 |
+| `phpmyadmin` | phpmyadmin:5.2.3-apache | Веб-клієнт для MySQL/MariaDB | 8081 |
+| `pgadmin` | dpage/pgadmin4:9.18.0 | Веб-клієнт для PostgreSQL | 5050 |
+| `mongo-express` | mongo-express:1.0.2-20-alpine3.19 | Веб-клієнт для MongoDB | 8082 |
+| `redis-commander` | rediscommander/redis-commander (digest) | Веб-клієнт для Redis | 8083 |
 
 Дані зберігаються в іменованих Docker-томах і не втрачаються після `docker compose down` (але видаляються разом із `-v` або `./manage.sh reset`).
+Усі вебінтерфейси й порти БД доступні тільки з цього комп'ютера (`127.0.0.1`). Адміністративні інтерфейси не мають додаткового рівня автентифікації. Стенд використовує демонстраційні паролі й непридатний для production.
 
 ## Тренажер
 
@@ -61,8 +64,8 @@ cd docker
 
 | Розділ | Що робить |
 |---|---|
-| **SQL Runner** `/runner.php` | Виконує SELECT-запити до дев'яти SQL-баз (MySQL, MariaDB, PostgreSQL, три `shop_big` і три пісочниці), показує час і план (`EXPLAIN`, `EXPLAIN ANALYZE`), експортує результат у CSV (до 5000 рядків). У пісочницях дозволені INSERT, UPDATE, DELETE, CREATE, DROP. |
-| **NoSQL-консоль** `/nosql.php` | MongoDB `find` та агрегаційний конвеєр (`$match`, `$group`, `$unwind`, `$lookup`…) для `learn` і `shop_big`; команди Redis із прикладами. Заборонено `$out`, `$merge`, `FLUSHALL`, `CONFIG`, `SHUTDOWN`; Redis працює в окремій базі №5. |
+| **SQL Runner** `/runner.php` | Виконує SELECT-запити до дев'яти SQL-баз (MySQL, MariaDB, PostgreSQL, три `shop_big` і три пісочниці), показує час і план (`EXPLAIN`, `EXPLAIN ANALYZE`), експортує результат у CSV (до 5000 рядків). Не-пісочниці виконують запити в read-only транзакції з таймаутом; у пісочницях дозволені INSERT, UPDATE, DELETE, CREATE, DROP. |
+| **NoSQL-консоль** `/nosql.php` | MongoDB `find` та агрегаційний конвеєр (`$match`, `$group`, `$unwind`, `$lookup`…) для `learn` і `shop_big`; команди Redis із прикладами. MongoDB-запити мають read-only користувача й обмеження часу/результатів; Redis працює в базі №5 з allowlist команд без перемикання баз. |
 | **Схема баз** `/schema.php` | Таблиці, колонки, типи, ключі, індекси та зовнішні ключі (зв'язки) будь-якої бази — з `information_schema`, завжди актуально. |
 | **Вправи** `/tasks.php` | 55 задач із автоперевіркою: 34 SQL, 12 MongoDB, 9 Redis. Підказки, еталонні відповіді, збереження прогресу. |
 | **Пісочниця** `/sandbox.php` | Бази `sandbox` у MySQL, MariaDB, PostgreSQL для вільних експериментів. «Скинути» повертає початковий стан і видаляє сторонні таблиці. |
@@ -93,12 +96,13 @@ docker exec -it learn-redis redis-cli
 | MariaDB | `127.0.0.1:3307` | `root` / `student` | `root` / `student` | як у MySQL |
 | PostgreSQL | `127.0.0.1:5432` | `student` | `student` | `learn` (схеми `shop`, `shop_big`), `sandbox` |
 | PostgreSQL | `127.0.0.1:5432` | `readonly` | `readonly` | читання `shop`, `shop_big` |
-| MongoDB | `127.0.0.1:27017` | `root` | `student` | `learn`, `shop_big` (authSource `admin`) |
+| MongoDB | `127.0.0.1:27017` | `root` | `student` | адміністрування (authSource `admin`) |
+| MongoDB | `127.0.0.1:27017` | `learner` | `learner-readonly` | читання `learn`, `shop_big` (authSource `admin`) |
 | Redis | `127.0.0.1:6379` | — | без пароля | — |
 
-`root` — адміністративний користувач MySQL/MariaDB/MongoDB. Для навчальних запитів використовуйте `student`. Користувач `readonly` існує, щоб на практиці побачити обмеження прав: він читає дані, але не може їх змінити чи створити таблицю.
+`root` — адміністративний користувач MySQL/MariaDB/MongoDB. Для консольної практики використовуйте `student`; SQL Runner підключається до навчальних баз як `readonly`, а до пісочниць — як `student`. Користувачі `readonly` та `learner` не можуть змінювати навчальні дані.
 
-Усі значення задаються у `.env` до першого запуску; у PHP ті самі дані — у `www/config.php`.
+Значення задаються в локальному `.env`, створеному з `.env.example`; `.env` ігнорується Git. SQL Runner використовує обмежені `readonly` ролі для навчальних баз і користувачів `student` лише в пісочницях. `mongo-bootstrap` створює окремого MongoDB-користувача з роллю читання; його логін і пароль задаються через `.env`. Демонстраційні паролі призначені тільки для локального стенду.
 
 ## Веб-інтерфейси
 
@@ -107,8 +111,8 @@ docker exec -it learn-redis redis-cli
 | Adminer | http://localhost:8080 | Server `mysql` / `mariadb` / `postgres`, User `student`, Password `student`, DB `learn` |
 | phpMyAdmin | http://localhost:8081 | одразу MySQL; для MariaDB вкажіть сервер `mariadb` (порт 3306) |
 | pgAdmin | http://localhost:5050 | `admin@example.com` / `admin`; сервер `PostgreSQL (learn)` уже доданий, пароль `student` |
-| Mongo Express | http://localhost:8082 | без авторизації, підключення налаштоване |
-| Redis Commander | http://localhost:8083 | без авторизації |
+| Mongo Express | http://localhost:8082 | без авторизації, підключення налаштоване; лише loopback |
+| Redis Commander | http://localhost:8083 | без авторизації; лише loopback |
 
 Adminer і phpMyAdmin працюють із SQL-базами; MongoDB та Redis дивіться через Mongo Express, Redis Commander або NoSQL-консоль тренажера.
 
@@ -235,13 +239,14 @@ docker exec learn-web php -l /var/www/html/index.php   # перевірка си
 
 ```
 docker/
-├── docker-compose.yml      # 11 сервісів
-├── .env                    # порти й паролі
+├── docker-compose.yml      # 11 постійних сервісів і bootstrap MongoDB
+├── .env.example            # шаблон локальної конфігурації
 ├── manage.sh               # керування стендом
 ├── mysql/init/             # схема, пісочниця, користувачі
 ├── mariadb/init/
 ├── postgres/init/
 ├── mongo/init/
+├── mongo/provision/        # read-only користувач застосунку
 ├── seed/                   # генератори shop_big (MySQL, MariaDB, PostgreSQL, MongoDB)
 ├── pgadmin/servers.json
 ├── web/Dockerfile          # PHP 8.4 + Apache + розширення БД
@@ -265,11 +270,11 @@ docker/
 └── backups/                # створюється під час backup
 ```
 
-Скрипти з `*/init/` виконуються **лише при першому створенні тому**. Щоб застосувати їх заново, видаліть томи (`./manage.sh reset`). Для MySQL/MariaDB скрипти починаються з `SET NAMES utf8mb4` — без цього кирилиця з SQL-файлу збережеться спотвореною.
+Скрипти з `*/init/` виконуються **лише при першому створенні тому**. Щоб застосувати їх заново, видаліть томи (`./manage.sh reset`). MongoDB read-only користувач окремо створюється/оновлюється одноразовим сервісом `mongo-bootstrap`, зокрема для вже наявного тому. Для MySQL/MariaDB скрипти починаються з `SET NAMES utf8mb4` — без цього кирилиця з SQL-файлу збережеться спотвореною.
 
 ## Налаштування
 
-**Пароли й порти.** Відредагуйте `.env` і перезапустіть (`./manage.sh down && ./manage.sh up`). Зміна пароля не оновлює його в уже створеній базі — пароль задається під час ініціалізації, тому потрібне або `ALTER USER`, або скидання томів.
+**Пароли й порти.** Скопіюйте `.env.example` у `.env`, відредагуйте локальний файл і перезапустіть (`./manage.sh down && ./manage.sh up`). `.env` ігнорується Git. Зміна пароля SQL-користувачів не оновлює його в уже створеній базі — пароль задається під час ініціалізації, тому потрібне або `ALTER USER`, або скидання томів. Після створення `shop_big` команда `./manage.sh seed` надає `readonly` доступ лише на читання до цієї схеми/бази. MongoDB-користувача застосунку оновлює `mongo-bootstrap`.
 
 **Новий користувач або база.** MySQL/MariaDB — `CREATE USER` / `CREATE DATABASE` під `root`; PostgreSQL — `CREATE ROLE` / `CREATE DATABASE` під `student` (він суперкористувач у цьому контейнері). Приклад є в конспекті `docs/11-administration.md`.
 
